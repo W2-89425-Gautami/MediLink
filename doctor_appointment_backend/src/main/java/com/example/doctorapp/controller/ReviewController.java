@@ -1,27 +1,41 @@
 package com.example.doctorapp.controller;
 
-import com.example.doctorapp.dto.ReviewDto;
+import com.example.doctorapp.dto.ReviewDTO;
 import com.example.doctorapp.service.ReviewService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/reviews")
-@RequiredArgsConstructor
 public class ReviewController {
 
-    private final ReviewService reviewService;
+    @Autowired
+    private ReviewService reviewService;
 
-    @PostMapping
-    public ResponseEntity<ReviewDto> addReview(@RequestBody ReviewDto dto) {
-        return ResponseEntity.ok(reviewService.addReview(dto));
+    @GetMapping
+    public List<ReviewDTO> getAllReviews() {
+        return reviewService.getAllReviews();
     }
 
-    @GetMapping("/doctor/{doctorId}")
-    public ResponseEntity<List<ReviewDto>> getReviewsByDoctor(@PathVariable Long doctorId) {
-        return ResponseEntity.ok(reviewService.getReviewsByDoctor(doctorId));
+    @GetMapping("/{id}")
+    public ReviewDTO getReviewById(@PathVariable Long id) {
+        return reviewService.getReviewById(id);
+    }
+
+    @PostMapping
+    public ReviewDTO createReview(@RequestBody ReviewDTO reviewDTO) {
+        return reviewService.createReview(reviewDTO);
+    }
+
+    @PutMapping("/{id}")
+    public ReviewDTO updateReview(@PathVariable Long id, @RequestBody ReviewDTO reviewDTO) {
+        return reviewService.updateReview(id, reviewDTO);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteReview(@PathVariable Long id) {
+        reviewService.deleteReview(id);
     }
 }

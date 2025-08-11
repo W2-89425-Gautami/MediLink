@@ -2,53 +2,103 @@ package com.example.doctorapp.service.impl;
 
 import com.example.doctorapp.dto.ReviewDTO;
 import com.example.doctorapp.entity.Doctor;
+import com.example.doctorapp.entity.Patient;
 import com.example.doctorapp.entity.Review;
-import com.example.doctorapp.entity.User;
+import com.example.doctorapp.exception.ResourceNotFoundException;
 import com.example.doctorapp.repository.DoctorRepository;
+import com.example.doctorapp.repository.PatientRepository;
 import com.example.doctorapp.repository.ReviewRepository;
-import com.example.doctorapp.repository.UserRepository;
 import com.example.doctorapp.service.ReviewService;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class ReviewServiceImpl implements ReviewService {
 
-    private final ReviewRepository reviewRepository;
-    private final DoctorRepository doctorRepository;
-    private final UserRepository userRepository;
+    @Autowired
+    private ReviewRepository reviewRepository;
+
+    @Autowired
+    private DoctorRepository doctorRepository;
+
+    @Autowired
+    private PatientRepository patientRepository;
 
     @Override
-    public ReviewDTO addReview(Long doctorId, Long userId, ReviewDTO dto) {
-        Doctor doctor = doctorRepository.findById(doctorId).orElseThrow();
-        User user = userRepository.findById(userId).orElseThrow();
+    public ReviewDTO createReview(ReviewDTO reviewDto) {
+        Doctor doctor = doctorRepository.findById(reviewDto.getDoctorId())
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found with id: " + reviewDto.getDoctorId()));
+
+        Patient patient = patientRepository.findById(reviewDto.getPatientId())
+                .orElseThrow(() -> new ResourceNotFoundException("Patient not found with id: " + reviewDto.getPatientId()));
 
         Review review = new Review();
         review.setDoctor(doctor);
-        review.setUser(user);
-        review.setRating(dto.getRating());
-        review.setComment(dto.getComment());
-        return toDTO(reviewRepository.save(review));
+        review.setPatient(patient);
+        review.setRating(reviewDto.getRating());
+        review.setComment(reviewDto.getComment());
+
+        Review saved = reviewRepository.save(review);
+
+        return mapToDTO(saved);
     }
 
     @Override
-    public List<ReviewDTO> getReviewsForDoctor(Long doctorId) {
-        return reviewRepository.findByDoctorId(doctorId)
-                .stream().map(this::toDTO).collect(Collectors.toList());
+    public ReviewDTO getReviewById(Long id) {
+        Review review = reviewRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Review not found with id: " + id));
+        return mapToDTO(review);
     }
 
-    private ReviewDTO toDTO(Review review) {
+    @Override
+    public List<ReviewDTO> getAllReviews() {
+        List<Review> reviews = reviewRepository.findAll();
+        return reviews.stream().map(this::mapToDTO).collect(Collectors.toList());
+    }
+
+    @Override
+    public ReviewDTO updateReview(Long id, ReviewDTO reviewDto) {
+        Review review = reviewRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Review not found with id: " + id));
+
+        if (reviewDto.getDoctorId() != null) {
+            Doctor doctor = doctorRepository.findById(reviewDto.getDoctorId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Doctor not found with id: " + reviewDto.getDoctorId()));
+            review.setDoctor(doctor);
+        }
+
+        if (reviewDto.getPatientId() != null) {
+            Patient patient = patientRepository.findById(reviewDto.getPatientId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Patient not found with id: " + reviewDto.getPatientId()));
+            review.setPatient(patient);
+        }
+
+        review.setRating(reviewDto.getRating());
+        review.setComment(reviewDto.getComment());
+
+        Review updated = reviewRepository.save(review);
+        return mapToDTO(updated);
+    }
+
+    @Override
+    public void deleteReview(Long id) {
+        Review review = reviewRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Review not found with id: " + id));
+        reviewRepository.delete(review);
+    }
+
+    // Mapping Method
+    private ReviewDTO mapToDTO(Review review) {
         ReviewDTO dto = new ReviewDTO();
         dto.setId(review.getId());
+        dto.setDoctorId(review.getDoctor().getId());
+        dto.setPatientId(review.getPatient().getId());
         dto.setRating(review.getRating());
         dto.setComment(review.getComment());
-        dto.setDoctorId(review.getDoctor().getId());
-        dto.setUserId(review.getUser().getId());
         return dto;
     }
 }

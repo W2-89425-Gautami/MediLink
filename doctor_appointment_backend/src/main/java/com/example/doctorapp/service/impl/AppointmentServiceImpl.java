@@ -1,60 +1,87 @@
 package com.example.doctorapp.service.impl;
 
-import com.example.doctorapp.dto.AppointmentDTO;
 import com.example.doctorapp.entity.Appointment;
 import com.example.doctorapp.entity.Doctor;
 import com.example.doctorapp.entity.Patient;
+import com.example.doctorapp.exception.ResourceNotFoundException;
+import com.example.doctorapp.dto.AppointmentDTO;
 import com.example.doctorapp.repository.AppointmentRepository;
 import com.example.doctorapp.repository.DoctorRepository;
 import com.example.doctorapp.repository.PatientRepository;
 import com.example.doctorapp.service.AppointmentService;
-
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class AppointmentServiceImpl implements AppointmentService {
 
-    private final AppointmentRepository appointmentRepository;
-    private final DoctorRepository doctorRepository;
-    private final PatientRepository patientRepository;
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private DoctorRepository doctorRepository;
+
+    @Autowired
+    private PatientRepository patientRepository;
 
     @Override
-    public AppointmentDTO bookAppointment(AppointmentDTO dto) {
-        Doctor doctor = doctorRepository.findById(dto.getDoctorId()).orElseThrow();
-        Patient patient = patientRepository.findById(dto.getPatientId()).orElseThrow();
+    public AppointmentDTO createAppointment(AppointmentDTO dto) {
+        Doctor doctor = doctorRepository.findById(dto.getDoctorId())
+            .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", dto.getDoctorId()));
+        Patient patient = patientRepository.findById(dto.getPatientId())
+            .orElseThrow(() -> new ResourceNotFoundException("Patient", "id", dto.getPatientId()));
 
         Appointment appointment = new Appointment();
-        appointment.setDate(dto.getDate());
-        appointment.setTime(dto.getTime());
         appointment.setDoctor(doctor);
         appointment.setPatient(patient);
-        return toDTO(appointmentRepository.save(appointment));
+        appointment.setAppointmentDate(dto.getAppointmentDate());
+        appointment.setStatus(dto.getStatus());
+
+        return mapToDto(appointmentRepository.save(appointment));
     }
 
     @Override
-    public List<AppointmentDTO> getAppointmentsByPatientId(Long patientId) {
-        return appointmentRepository.findByPatientId(patientId)
-                .stream().map(this::toDTO).collect(Collectors.toList());
+    public AppointmentDTO getAppointmentById(Long id) {
+        Appointment appt = appointmentRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", id));
+        return mapToDto(appt);
     }
 
     @Override
-    public List<AppointmentDTO> getAppointmentsByDoctorId(Long doctorId) {
-        return appointmentRepository.findByDoctorId(doctorId)
-                .stream().map(this::toDTO).collect(Collectors.toList());
+    public List<AppointmentDTO> getAllAppointments() {
+        return appointmentRepository.findAll()
+            .stream().map(this::mapToDto)
+            .collect(Collectors.toList());
     }
 
-    private AppointmentDTO toDTO(Appointment appointment) {
+    @Override
+    public AppointmentDTO updateAppointment(Long id, AppointmentDTO dto) {
+        Appointment appt = appointmentRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", id));
+
+        appt.setAppointmentDate(dto.getAppointmentDate());
+        appt.setStatus(dto.getStatus());
+
+        return mapToDto(appointmentRepository.save(appt));
+    }
+
+    @Override
+    public void cancelAppointment(Long id) {
+        Appointment appt = appointmentRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Appointment", "id", id));
+        appointmentRepository.delete(appt);
+    }
+
+    private AppointmentDTO mapToDto(Appointment appt) {
         AppointmentDTO dto = new AppointmentDTO();
-        dto.setId(appointment.getId());
-        dto.setDate(appointment.getDate());
-        dto.setTime(appointment.getTime());
-        dto.setDoctorId(appointment.getDoctor().getId());
-        dto.setPatientId(appointment.getPatient().getId());
+        dto.setId(appt.getId());
+        dto.setDoctorId(appt.getDoctor().getId());
+        dto.setPatientId(appt.getPatient().getId());
+        dto.setAppointmentDate(appt.getAppointmentDate());
+        dto.setStatus(appt.getStatus());
         return dto;
     }
 }
